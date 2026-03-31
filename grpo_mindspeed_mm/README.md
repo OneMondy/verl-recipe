@@ -62,7 +62,6 @@ pip install mathruler
 # verl
 # ├── recipe
 #     ├── grpo_mindspeed_mm
-# vllm
 # vllm-ascend
 ```
 

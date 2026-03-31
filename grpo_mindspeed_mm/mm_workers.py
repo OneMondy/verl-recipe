@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+
 import torch
 from omegaconf import DictConfig
 
@@ -48,15 +49,15 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
 
         assert role in ["actor", "ref"]
 
+        from typing import Any
+
         import yaml
-        from typing import Any, Dict
         from mindspeed_mm.fsdp.params.argument import Arguments
         from mindspeed_mm.fsdp.params.utils import instantiate_dataclass
-        mm_file_path = os.environ.get('MM_CONFIG_FILE')
-        if mm_file_path is None:
-            raise ValueError(f"MM_CONFIG_FILE is None, please set.")
+
+        mm_file_path = os.environ.get("MM_CONFIG_FILE")
         with open(os.path.abspath(mm_file_path), encoding="utf-8") as f:
-            input_data: Dict[str, Dict[str, Any]] = yaml.safe_load(f)
+            input_data: dict[str, dict[str, Any]] = yaml.safe_load(f)
         self.mm_args = instantiate_dataclass(Arguments, input_data)
         self.mm_args.training.compute_distributed_training(self.mm_args.parallel)
 
@@ -95,9 +96,10 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
 
         # patch for qwen2.5-vl: when using flash_attention_3, set vision tower to use flash_attention_2
         # because the vision tower does not support flash_attention_3
-        if (getattr(actor_model_config, "model_type", None) == "qwen2_5_vl"
-                and attn_implementation == "flash_attention_3"
-                and hasattr(actor_model_config, "vision_config")
+        if (
+            getattr(actor_model_config, "model_type", None) == "qwen2_5_vl"
+            and attn_implementation == "flash_attention_3"
+            and hasattr(actor_model_config, "vision_config")
         ):
             actor_model_config.vision_config._attn_implementation = "flash_attention_2"
 
