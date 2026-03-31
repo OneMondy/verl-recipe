@@ -4,19 +4,18 @@ ray stop --force
 export NON_MEGATRON=true
 export MULTI_STREAM_MEMORY_REUSE=2
 export OMP_NUM_THREADS=1
-# 显存不够
 export PYTORCH_NPU_ALLOC_CONF=max_split_size_mb:256
 
 
 project_name='GRPO-Qwen3_5'
 exp_name='GRPO-Qwen3_5-27b-npu'
-gen_tp=4
+gen_tp=8
 RAY_DATA_HOME=${RAY_DATA_HOME:-"${HOME}/verl"}
 
 MODEL_PATH=./weights/Qwen3.5-27B
 TRAIN_FILE=./datasets/geo3k/train.parquet
 TEST_FILE=./datasets/geo3k/test.parquet
-export MM_CONFIG_FILE=.examples/qwen3_5_27B_config.yaml
+export MM_CONFIG_FILE=./examples/qwen3_5_27B_config.yaml
 
 start_time=$(date +%Y%m%d)_$(date +%H%M%S)
 
@@ -36,6 +35,7 @@ python3 -m recipe.grpo_mindspeed_mm.main_ppo \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.ulysses_sequence_parallel_size=1 \
+    actor_rollout_ref.ref.ulysses_sequence_parallel_size=1 \
     actor_rollout_ref.actor.ppo_mini_batch_size=16 \
     actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.actor.use_kl_loss=True \

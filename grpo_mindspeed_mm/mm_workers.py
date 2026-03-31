@@ -11,9 +11,9 @@ from verl.utils.fsdp_utils import (
 )
 from verl.utils.profiler import log_gpu_memory_usage
 from verl.workers.config import FSDPEngineConfig
-from verl.workers.fsdp_workers import ActorRolloutRefWorker, AsyncActorRolloutRefWorker, get_sharding_strategy
+from verl.workers.fsdp_workers import ActorRolloutRefWorker, AsyncActorRolloutRefWorker, get_vl_model_vision_tower
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
 
@@ -25,26 +25,23 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
         return None
 
     def _build_model_optimizer(
-            self,
-            model_path,
-            fsdp_config: FSDPEngineConfig,
-            optim_config,
-            override_model_config,
-            use_remove_padding=False,
-            use_fused_kernels=False,
-            enable_gradient_checkpointing=False,
-            trust_remote_code=False,
-            use_liger=False,
-            role="actor",
-            enable_activation_offload=False,
-            use_prefix_grouper=False,
-            use_tiled_mlp=False,
-            tiled_mlp_shards=4,
+        self,
+        model_path,
+        fsdp_config: FSDPEngineConfig,
+        optim_config,
+        override_model_config,
+        use_remove_padding=False,
+        use_fused_kernels=False,
+        enable_gradient_checkpointing=False,
+        trust_remote_code=False,
+        use_liger=False,
+        role="actor",
+        enable_activation_offload=False,
+        use_prefix_grouper=False,
+        use_tiled_mlp=False,
+        tiled_mlp_shards=4,
     ):
-        from torch.distributed.fsdp import CPUOffload, MixedPrecision
-        from transformers import (
-            AutoConfig,
-        )
+        from transformers import AutoConfig
 
         from verl.utils.model import get_generation_config, print_model_size, update_model_config
         from verl.utils.torch_dtypes import PrecisionType
@@ -56,6 +53,8 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
         from mindspeed_mm.fsdp.params.argument import Arguments
         from mindspeed_mm.fsdp.params.utils import instantiate_dataclass
         mm_file_path = os.environ.get('MM_CONFIG_FILE')
+        if mm_file_path is None:
+            raise ValueError(f"MM_CONFIG_FILE is None, please set.")
         with open(os.path.abspath(mm_file_path), encoding="utf-8") as f:
             input_data: Dict[str, Dict[str, Any]] = yaml.safe_load(f)
         self.mm_args = instantiate_dataclass(Arguments, input_data)
@@ -96,8 +95,7 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
 
         # patch for qwen2.5-vl: when using flash_attention_3, set vision tower to use flash_attention_2
         # because the vision tower does not support flash_attention_3
-        if (
-                getattr(actor_model_config, "model_type", None) == "qwen2_5_vl"
+        if (getattr(actor_model_config, "model_type", None) == "qwen2_5_vl"
                 and attn_implementation == "flash_attention_3"
                 and hasattr(actor_model_config, "vision_config")
         ):
@@ -133,6 +131,7 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
         with init_context(), warnings.catch_warnings():
             warnings.simplefilter("ignore")
             from mindspeed_mm.fsdp.train.trainer import Trainer
+
             if role == "actor":
                 self.mm_args.parallel.fsdp_plan.cpu_offload = False
             else:

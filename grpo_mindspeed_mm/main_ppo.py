@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Note that we don't combine the main with ray_trainer as ray_trainer is used by other mpain.
+Note that we don't combine the main with ray_trainer as ray_trainer is used by other main.
 """
 
 import hydra
-import os
 import ray
 from omegaconf import OmegaConf
 from verl.experimental.reward_loop import migrate_legacy_reward_impl
 from verl.trainer.constants_ppo import get_ppo_ray_runtime_env
-from verl.trainer.main_ppo import run_ppo, TaskRunner
+from verl.trainer.main_ppo import TaskRunner
 from verl.trainer.ppo.utils import need_reference_policy
 from verl.utils.device import auto_set_device, is_cuda_available
 
@@ -140,7 +139,7 @@ class MMTaskRunner(TaskRunner):
 
         # Note: sync mode validation is now handled in RolloutConfig.__post_init__
         # Always use async worker since sync mode is deprecated and rejected
-        from recipe.grpo_mindspeed_mm.mm_workers import AsyncMMActorRolloutRefWorker
+        from .mm_workers import AsyncMMActorRolloutRefWorker
 
         actor_rollout_cls = AsyncMMActorRolloutRefWorker
         ray_worker_group_cls = RayWorkerGroup

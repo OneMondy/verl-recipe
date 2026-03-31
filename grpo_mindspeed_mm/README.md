@@ -9,59 +9,52 @@ For details, see [Installation Guide](https://gitcode.com/Ascend/MindSpeed-MM/bl
 
 ```shell
 # Importing CANN Environment Variables
-source /usr/local/Ascend/ascend-toolkit/set_env.sh
-source /usr/local/Ascend/nnal/atb/set_env.sh
+#source /usr/local/Ascend/ascend-toolkit/set_env.sh
+#source /usr/local/Ascend/nnal/atb/set_env.sh
+# CANN 9.0.0.B030
 
-# Creating the python3.11 conda environment
+# python3.11
 conda create -n test python=3.11
 conda activate test
 
-# Install vllm
-git clone https://github.com/vllm-project/vllm.git
-cd vllm
-git checkout a75a5b54c7f76bc2e15d3025d6
-git fetch origin pull/34521/head:pr-34521
-git merge pr-34521
-pip install -r requirements/build.txt
-VLLM_TARGET_DEVICE=empty pip install -v -e .
-cd ..
+# install vllm
+pip install vllm==0.18.0
 
-# Install vllm-ascend
+# install vllm-ascend
 git clone https://github.com/vllm-project/vllm-ascend.git
 cd vllm-ascend
-git checkout c63b7a11888e9e1caeeff8
-git fetch origin pull/6742/head:pr-6742
-git merge pr-6742
+git checkout 54879467c41784a446aa5b486a391d9bfbf488fa
 pip install -r requirements.txt
 export COMPILE_CUSTOM_KERNELS=1
 pip install -v -e .
 cd ..
 
-# Install Verl
+
+# install verl
 git clone https://github.com/volcengine/verl.git
 cd verl
-git checkout 3bbdecee9a243388442b800326d57a4f3dc41516
+git checkout ef072aca0b4f615dd3bd4561dde89f3389c50d35
 pip install -e .
 cd ..
 
-# Update the recipe directory.
-git clone https://github.com/verl-project/verl-recipe.git
-mkdir verl/recipe/grpo_mindspeed_mm
-cp -rf verl-recipe/grpo_mindspeed_mm verl/recipe/
 
-# Installing the Mindspeed-MM
+# install MindSpeed-MM
 git clone https://gitcode.com/Ascend/MindSpeed-MM.git
 cd MindSpeed-MM
-git checkout 7b8e497efcbfb1a44a77a03a7755de88f1a0424a
-git cherry-pick b8cbe78745ab1fe2f7ef02292a0c3c50a5174ee5 (pr_2292)
 bash scripts/install.sh --msid eb10b92 && bash examples/fsdp2/qwen3_5/install_extensions.sh
 # torch version mismatch detected. Reinstall PyTorch? (y/n) -> n
 # Reinstall torch_npu to match PyTorch version? (y/n) -> n
 cd ..
 
-# Installing Other Packages
-pip install torch_npu==2.9.0 torchvision==0.24.0 mathruler
+# install transformers
+git clone https://github.com/huggingface/transformers.git
+cd transformers
+git checkout cc7ab9be508ce6ed3637bba9e50367b29b742dc6
+pip install -e .
+cd ..
 
+pip install torch_npu==2.9.0 torchvision==0.24.0  torchaudio==2.9.0
+pip install mathruler
 
 # The directory structure after the preparation is as follows:
 # MindSpeed-MM
@@ -73,12 +66,7 @@ pip install torch_npu==2.9.0 torchvision==0.24.0 mathruler
 # vllm-ascend
 ```
 
-## 2. Dataset preparation ##
-
-recommend use geo3k dataset. 
-
-
-## 3. Training model preparation ##
+## 2. Training model preparation ##
 
 Qwen3.5 27B model download address:
 
@@ -88,7 +76,7 @@ The downloaded model is in the huggingface format and needs to be converted to t
 
 ### convert HF weight to DCP weight ###
 
-1.  Weight of the downloaded Qwen3.5 model In the mm root directory, run the following script to convert the weight:
+Run the following script to convert the weight:
 
 ```shell
 cd MindSpeed-MM
@@ -97,7 +85,7 @@ mm-convert Qwen35Converter hf_to_dcp \
 --hf_dir ckpt/hf_path/xxxxxxx \
 --dcp_dir ckpt/dcp_path/xxxxxxx
 
-# 转换后的目录结构为：
+# Structure
 # ———— xxxxxxx
 #   |—— release
 #   |—— latest_checkpointed_iteration.txt
@@ -112,7 +100,7 @@ Parameters in the weight conversion script are described as follows:
 | --dcp_dir | Path for storing weights after conversion or segmentation |
 
 
-## 5. Parameters for configuring args ##
+## 3. Parameters for configuring args ##
 
 Modify the following parameters and run the script to generate the args file for training preparation:
 
