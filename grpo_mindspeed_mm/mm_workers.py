@@ -34,6 +34,15 @@ logger = logging.getLogger(__name__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
 
 
+def move_buffers_to_device_recursive(model, device):
+    def _move_buffers(t):
+        if not isinstance(t, torch.nn.Parameter):
+            return t.to(device)
+        else:
+            return t
+    return model._apply(_move_buffers, recurse=True)
+
+
 class MMActorRolloutRefWorker(ActorRolloutRefWorker):
     def __init__(self, config: DictConfig, role: str, **kwargs):
         super().__init__(config, role, **kwargs)
@@ -62,7 +71,12 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
             if not self.base_sync_done:
                 params = {replace_lora_wrapper(k, peft_config): v for k, v in params.items()}
         else:
-            params = self.actor_module_fsdp.state_dict()
+            if self._is_offload_param:
+                params = self.actor_module_fsdp.state_dict()
+            else:
+                move_buffers_to_device_recursive(self.actor_module_fsdp, "cpu")
+                params = self.actor_module_fsdp.state_dict()
+                move_buffers_to_device_recursive(self.actor_module_fsdp, "npu")
 
         params = convert_weight_keys(
             params, getattr(self.actor_module_fsdp, "_fsdp_wrapped_module", self.actor_module_fsdp)
@@ -263,10 +277,14 @@ class MMActorRolloutRefWorker(ActorRolloutRefWorker):
             warnings.simplefilter("ignore")
             from mindspeed_mm.fsdp.train.trainer import Trainer
 
-            if role == "actor":
-                self.mm_args.parallel.fsdp_plan.cpu_offload = False
-            else:
+            if role == "actor" and fsdp_config.offload_policy:
                 self.mm_args.parallel.fsdp_plan.cpu_offload = True
+                self._is_offload_param = False
+                self._is_offload_optimizer = False
+
+            if role == "ref":
+                self.mm_args.parallel.fsdp_plan.cpu_offload = True
+
             trainer = Trainer(args=self.mm_args, dataloader_provider=self._dataloader)
             trainer.train_dataloader = None
             actor_module = trainer.model
