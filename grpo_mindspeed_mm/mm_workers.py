@@ -40,6 +40,7 @@ def move_buffers_to_device_recursive(model, device):
             return t.to(device)
         else:
             return t
+
     return model._apply(_move_buffers, recurse=True)
 
 
